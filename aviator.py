@@ -122,7 +122,7 @@ def resultado(resposta_json, lista_metar):
   pressao = get_pressao(lista_metar)
   print(f"\nCódigo ICAO: {codigo_icao}\nHorário da Observação: {horario_observacao}\nVento: {vento}\nTemperatura:{temperatura}\nPressão:{pressao}")
 
-def main():
+def metar():
   resposta = requisicao()
   resposta_json = xml_to_dict(resposta)
   lista_metar = metar_to_list(resposta_json)
@@ -171,7 +171,7 @@ def obter_informacoes_aerodromo(api_key, api_pass, rotaer_icao_code):
     dimensoes_da_pista_largura = resposta_dict.get('aisweb').get('runways').get('runway').get('width').get('#text')
     print(f"A pista possui o comprimento de {dimensoes_da_pista_metros} metros e {dimensoes_da_pista_largura} de largura.")
 
-def main():
+def rotaer():
     api_key = "1737636254"
     api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
     boasVindas()
@@ -239,7 +239,7 @@ def get_sunset(json_response):
 def get_result(icao_code, date, sunrise, sunset):
   print(f"\nPara {icao_code.upper()}, no dia {date}, o nascer do Sol acontecerá ás {sunrise} e o pôr do sol, ás {sunset}.")
 
-def main():
+def sol():
   dados = make_request()
   dados_json = json_response(dados)
   icao_code = get_icao_code(dados_json)
