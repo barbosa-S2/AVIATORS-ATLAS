@@ -1,16 +1,17 @@
 #GEILOC
-def requisicao():
+def get_url():
   api_key = "1737636254"
   api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
-  tipo = "AD"
-  cidade = input("Informe a cidade desejada: ")
+  icao_code = input("Informe o código ICAO desejado: ")
 
-  url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=rotaer&city={cidade}&type={tipo}"
+  url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=met&icaoCode={icao_code}"
 
-  requisicao = requests.get(url)
-  resposta = requisicao.content
+  return url
 
-  return resposta
+def make_request(url):
+  response = requests.get(url)
+
+  return response
 
 def xml_to_dict(resposta):
   resposta_json = xmltodict.parse(resposta)
@@ -50,40 +51,24 @@ def geiloc():
   resultado(resposta_json)
 
 #METAR
-def requisicao():
-  api_key = "1737636254"
-  api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
-  icao_code = input("Informe o código ICAO desejado: ")
-
-  url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=met&icaoCode={icao_code}"
-
-  resposta = requests.get(url)
-
-  return resposta
-
-def xml_to_dict(resposta):
-  resposta_json = xmltodict.parse(resposta.content)
-
-  return resposta_json
-
-def metar_to_list(resposta_json):
+def metar_to_list_metar(resposta_json):
   metar = resposta_json.get('aisweb').get('met').get('metar')
 
   lista_metar = metar.split()
 
   return lista_metar
 
-def icao_code(resposta_json):
+def icao_code_metar(resposta_json):
   codigo_icao = resposta_json.get('aisweb').get('met').get('loc')
 
   return codigo_icao
 
-def get_horario(lista_metar):
+def get_horario_metar(lista_metar):
   horario_observacao = f"{int(lista_metar[2][2:4])-3}:{lista_metar[2][4:6]}"
 
   return horario_observacao
 
-def get_vento(lista_metar):
+def get_vento_metar(lista_metar):
  vento = int(lista_metar[3][0:3])
  velocidade_do_vento = lista_metar[3][3:5]
 
@@ -104,39 +89,31 @@ def get_vento(lista_metar):
  return result
  return vento
 
-def get_temperatura(lista_metar):
+def get_temperatura_metar(lista_metar):
   temperatura = f"{lista_metar[-2][0:2]}º C"
 
   return temperatura
 
-def get_pressao(lista_metar):
+def get_pressao_metar(lista_metar):
   pressao = f"{lista_metar[-1][1:5]} hPa"
 
   return pressao
 
-def resultado(resposta_json, lista_metar):
-  codigo_icao = icao_code(resposta_json)
-  horario_observacao = get_horario(lista_metar)
-  vento = get_vento(lista_metar)
-  temperatura = get_temperatura(lista_metar)
-  pressao = get_pressao(lista_metar)
+def resultado_metar(resposta_json, lista_metar):
+  codigo_icao = icao_code_metar(resposta_json)
+  horario_observacao = get_horario_metar(lista_metar)
+  vento = get_vento_metar(lista_metar)
+  temperatura = get_temperatura_metar(lista_metar)
+  pressao = get_pressao_metar(lista_metar)
   print(f"\nCódigo ICAO: {codigo_icao}\nHorário da Observação: {horario_observacao}\nVento: {vento}\nTemperatura:{temperatura}\nPressão:{pressao}")
 
 def metar():
   resposta = requisicao()
   resposta_json = xml_to_dict(resposta)
-  lista_metar = metar_to_list(resposta_json)
-  resultado(resposta_json, lista_metar)
+  lista_metar = metar_to_list_metar(resposta_json)
+  resultado_metar(resposta_json, lista_metar)
 
 #ROTAER
-def boasVindas():
-    print("Bem-vindo ao sistema de consumo de API e interpretação de dados de aeródromos!")
-    print("""
-       __|__    
---o--o--(_)--o--o--
-    """)
-    print("Estamos prontos para ajudar a encontrar as informações que você precisa.\n")
-
 def obter_informacoes_aerodromo(api_key, api_pass, rotaer_icao_code):
     url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=rotaer&icaoCode={rotaer_icao_code}"
 
@@ -174,7 +151,6 @@ def obter_informacoes_aerodromo(api_key, api_pass, rotaer_icao_code):
 def rotaer():
     api_key = "1737636254"
     api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
-    boasVindas()
 
     while True:
         rotaer_icao_code = input("\nDigite o código ICAO da localidade do aeródromo que deseja: ")
@@ -186,17 +162,6 @@ def rotaer():
             break
 
 #SOL
-def make_request():
-  api_key = "1737636254"
-  api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
-  icao_code = input('Informe o codigo ICAO desejado: ')
-
-  url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=sol&icaoCode={icao_code}"
-
-  resposta = requests.get(url)
-
-  return resposta
-
 def json_response(resposta):
   json_response = xmltodict.parse(resposta.content)
 
@@ -247,3 +212,28 @@ def sol():
   nascer_do_sol = get_sunrise(dados_json)
   por_do_sol = get_sunset(dados_json)
   get_result(icao_code, data_observacao, nascer_do_sol, por_do_sol)
+
+def main():
+
+  print("===========================================")
+  print("=======BEM VINDO AO Aviators Atlas=========")
+  print("===========================================\n\n")
+  print("==================MENU=====================")
+  print("1 - GEILOC")
+  print("2 - METAR")
+  print("3 - ROTAER")
+  print("4 - SOL")
+  print("5 - SAIR")
+
+  opcao = int(input("Sua opção: "))
+
+  if opcao == 1:
+    geiloc()
+  elif opcap == 2:
+    metar()
+  elif opcao == 3:
+    rotaer()
+  elif opcao == 4:
+    sol()
+
+
