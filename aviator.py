@@ -1,10 +1,31 @@
-#GEILOC
-def get_url():
+!pip install xmltodict
+
+import pprint
+import json
+import requests
+import xmltodict
+
+#--------------
+#FUNÇÕES COMUNS
+#--------------
+
+def get_url(area):
   api_key = "1737636254"
   api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
-  icao_code = input("Informe o código ICAO desejado: ")
+  tipo = "AD"
 
-  url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=met&icaoCode={icao_code}"
+  if area == "met":
+    icao_code = input("Informe o código ICAO desejado: ")
+    url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=met&icaoCode={icao_code}"
+  elif area == "rotaer":
+    icao_code = input("Informe o código ICAO desejado: ")
+    url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=rotaer&icaoCode={icao_code}"
+  elif area == "geiloc":
+    cidade = input("Informe a cidade desejada: ")
+    url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=rotaer&city={cidade}&type={tipo}"
+  elif area == "sol":
+    icao_code = input("Informe o código ICAO desejado: ")
+    url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=sol&icaoCode={icao_code}"
 
   return url
 
@@ -13,32 +34,29 @@ def make_request(url):
 
   return response
 
-def xml_to_dict(resposta):
-  resposta_json = xmltodict.parse(resposta)
+def xml_to_dict(response):
+  json_response = xmltodict.parse(response.content)
 
-  return resposta_json
+  return json_response
 
-def resultado(resposta_json):
+#------
+#GEILOC
+#------
 
-  total_aeroportos = int(resposta_json.get('aisweb').get('rotaer').get('@total'))
+def get_data_geiloc(json_response):
+
+  total_aeroportos = int(json_response.get('aisweb').get('rotaer').get('@total'))
 
   if total_aeroportos == 1:
-    cidade = resposta_json.get('aisweb').get('rotaer').get('item').get('city')
-
-    aeroporto = resposta_json.get('aisweb').get('rotaer').get('item')
-
+    cidade = json_response.get('aisweb').get('rotaer').get('item').get('city')
+    aeroporto = json_response.get('aisweb').get('rotaer').get('item')
     print(f"\n\nA cidade de {cidade} tem os seguinte aeroporto:\n")
-
     print(f"Aerodromo 1\nNome: {aeroporto.get('name')}\nCódigo ICAO: {aeroporto.get('AeroCode')}\n")
 
   else:
-
-    cidade = resposta_json.get('aisweb').get('rotaer').get('item')[0].get('city')
-
-    lista_aeroportos = resposta_json.get('aisweb').get('rotaer').get('item')
-
+    cidade = json_response.get('aisweb').get('rotaer').get('item')[0].get('city')
+    lista_aeroportos = json_response.get('aisweb').get('rotaer').get('item')
     numero = 1
-
     print(f"\n\nA cidade de {cidade} tem os seguintes aeroportos:\n")
 
     for aeroporto in lista_aeroportos:
@@ -46,133 +64,230 @@ def resultado(resposta_json):
       numero +=1
 
 def geiloc():
-  resposta = requisicao()
-  resposta_json = xml_to_dict(resposta)
-  resultado(resposta_json)
+  area = "geiloc"
+  url = get_url(area)
+  response = make_request(url)
+  json_response = xml_to_dict(response)
+  get_data_geiloc(json_response)
 
+#-----
 #METAR
-def metar_to_list_metar(resposta_json):
-  metar = resposta_json.get('aisweb').get('met').get('metar')
+#-----
 
-  lista_metar = metar.split()
+def get_data_metar(json_response):
+  metar = json_response.get('aisweb').get('met').get('metar')
 
-  return lista_metar
+  data = metar.split()
 
-def icao_code_metar(resposta_json):
-  codigo_icao = resposta_json.get('aisweb').get('met').get('loc')
+  return data
+
+def get_icao_code_metar(json_response):
+  icao_code = json_response.get('aisweb').get('met').get('loc')
+
+  return icao_code
+
+def get_time_metar(data):
+  obs_time = f"{int(data[2][2:4])-3}:{data[2][4:6]}"
+
+  return obs_time
+
+def get_wind_metar(data):
+  wind = int(data[3][0:3])
+  wind_speed = data[3][3:5]
+
+  if wind >=316 or wind <=45:
+    wind_dir = "Norte"
+  elif wind >=46 and wind <= 135:
+    wind_dir = "Leste"
+  elif wind >=136 and wind <=225:
+    wind_dir = "Sul"
+  elif wind >=226 and wind <=315:
+    wind_dir = "Oeste"
+
+  result = f"Vento de {wind_dir} com {wind_speed} nós"
+
+  return result
+
+def get_temperature_metar(data):
+  temperature = f"{data[-2][0:2]}º C"
+
+  return temperature
+
+def get_pressure_metar(data):
+  pressure = f"{data[-1][1:5]} hPa"
+
+  return pressure
+
+def get_result_metar(json_response, data):
+  codigo_icao = get_icao_code_metar(json_response)
+  horario_observacao = get_time_metar(data)
+  vento = get_wind_metar(data)
+  temperatura = get_temperature_metar(data)
+  pressao = get_pressure_metar(data)
+  print(f"\nCódigo ICAO: {codigo_icao}\nHorário da Observação: {horario_observacao}\nVento: {vento}\nTemperatura: {temperatura}\nPressão:{pressao}")
+
+def metar():
+  area = "met"
+  url = get_url(area)
+  response = make_request(url)
+  json_response = xml_to_dict(response)
+  data = get_data_metar(json_response)
+  get_result_metar(json_response, data)
+
+#------
+#ROTAER
+#------
+
+def get_data_rotaer(json_response):
+  data = json_response.get('aisweb')
+
+  return data
+
+def get_name_rotaer(data):
+  nome = data.get('name')
+
+  return nome
+
+def get_icao_code_rotaer(data):
+  codigo_icao = data.get('AeroCode')
 
   return codigo_icao
 
-def get_horario_metar(lista_metar):
-  horario_observacao = f"{int(lista_metar[2][2:4])-3}:{lista_metar[2][4:6]}"
+def get_city_rotaer(data):
+  cidade = data.get('city')
 
-  return horario_observacao
+  return cidade
 
-def get_vento_metar(lista_metar):
- vento = int(lista_metar[3][0:3])
- velocidade_do_vento = lista_metar[3][3:5]
+def get_aero_type_rotaer(data):
+  tipo_aerodromo = data.get('org').get('military').title()
 
+  return tipo_aerodromo
 
- if vento >=316 or vento <=45:
-   direcao_vento = "Norte"
- elif vento >=46 and vento <= 135:
-   direcao_vento = "Leste"
- elif vento >=136 and vento <=225:
-   direcao_vento = "Sul"
- elif vento >=226 and vento <=315:
-   direcao_vento = "Oeste"
+def get_alt_ft_rotaer(data):
+  alt_ft = data.get('altFt')
 
+  formated_alt_ft = f"{alt_ft}ft"
 
- result = f"Vento de {direcao_vento} com {velocidade_do_vento} nós"
+  return formated_alt_ft
 
+def get_alt_mt_rotaer(data):
+  alt_mt = data.get('altM')
 
- return result
- return vento
+  formated_alt_mt = f"{alt_mt} mts"
 
-def get_temperatura_metar(lista_metar):
-  temperatura = f"{lista_metar[-2][0:2]}º C"
+  return formated_alt_mt
 
-  return temperatura
+def get_fir_rotaer(data):
+  fir = data.get('fir')
 
-def get_pressao_metar(lista_metar):
-  pressao = f"{lista_metar[-1][1:5]} hPa"
+  if fir == "SBCW":
+    formated_fir = "SBCW - Centro Curitiba"
+  elif fir == "SBBS":
+    formated_fir = "SBBS - Centro Brasília"
+  elif fir == "SBRE":
+    formated_fir = "SBRE - Centro Recife"
+  else:
+    formated_fir = "SBAZ - Centro Amazônico"
 
-  return pressao
+  return formated_fir
 
-def resultado_metar(resposta_json, lista_metar):
-  codigo_icao = icao_code_metar(resposta_json)
-  horario_observacao = get_horario_metar(lista_metar)
-  vento = get_vento_metar(lista_metar)
-  temperatura = get_temperatura_metar(lista_metar)
-  pressao = get_pressao_metar(lista_metar)
-  print(f"\nCódigo ICAO: {codigo_icao}\nHorário da Observação: {horario_observacao}\nVento: {vento}\nTemperatura:{temperatura}\nPressão:{pressao}")
+def get_rwy_thr_rotaer(data):
+  rwy_qty = int(data.get('runways').get('@count'))
 
-def metar():
-  resposta = requisicao()
-  resposta_json = xml_to_dict(resposta)
-  lista_metar = metar_to_list_metar(resposta_json)
-  resultado_metar(resposta_json, lista_metar)
+  if rwy_qty == 1:
+    rwy_thr = data.get('runways').get('runway').get('ident')
 
-#ROTAER
-def obter_informacoes_aerodromo(api_key, api_pass, rotaer_icao_code):
-    url = f"http://aisweb.decea.gov.br/api/?apiKey={api_key}&apiPass={api_pass}&area=rotaer&icaoCode={rotaer_icao_code}"
+    return rwy_thr
 
-    resposta = requests.get(url)
-    resposta_dict = xmltodict.parse(resposta.content)
+  else:
+    rwys = []
 
-    nome = resposta_dict.get('aisweb').get('name')
-    print(f"Nome do aerodromo: {nome}")
+    for rwy in data.get('runways').get('runway'):
+      rwy_thr = rwy.get('ident')
+      rwys.append(rwy_thr)
 
-    codigo_icao = resposta_dict.get('aisweb').get('AeroCode')
-    print(f"Codigo ICAO: {codigo_icao}")
+    return rwys
 
-    local = resposta_dict.get('aisweb').get('city')
-    print(f"Cidade do aerodromo: {local}")
+def get_rwy_dimensions_rotaer(data):
+  rwy_qty = int(data.get('runways').get('@count'))
 
-    tipo_de_aerodromo = resposta_dict.get('aisweb').get('org').get('military')
-    if tipo_de_aerodromo != 'CIVIL':
-      print(f"Tipo de aerodromo: {tipo_de_aerodromo}")
-    else:
-      print(f"Não existe tipo.")
+  if rwy_qty == 1:
+    rwy_width = f"{data.get('runways').get('runway').get('width').get('#text')}"
+    rwy_length = f"{data.get('runways').get('runway').get('length').get('#text')}"
 
-    elevacao = resposta_dict.get('aisweb').get('altFt')
-    print(f"Elevação em pés: {elevacao} pés")
+    rwy_dimension = f"{rwy_length} x {rwy_width} metros"
 
-    fir = resposta_dict.get('aisweb').get('fir')
-    print(f"Codigo ICAO da FIR: {fir}")
+    return rwy_dimension
 
-    pista = resposta_dict.get('aisweb').get('runways').get('runway').get('ident')
-    print(f"Designativo das cabeceiras da pista: {pista}")
+  else:
+    rwy_widths = []
+    rwy_lengths = []
 
-    dimensoes_da_pista_metros = resposta_dict.get('aisweb').get('runways').get('runway').get('length').get('#text')
-    dimensoes_da_pista_largura = resposta_dict.get('aisweb').get('runways').get('runway').get('width').get('#text')
-    print(f"A pista possui o comprimento de {dimensoes_da_pista_metros} metros e {dimensoes_da_pista_largura} de largura.")
+    for rwy in data.get('runways').get('runway'):
+      width = rwy.get('width').get('#text')
+      rwy_widths.append(width)
+
+    for rwy in data.get('runways').get('runway'):
+      length = rwy.get('length').get('#text')
+      rwy_lengths.append(length)
+
+    rwy_dimensions = []
+
+    index = 0
+
+    for i in range(len(rwy_widths)):
+      rwy_dimensions.append(f"{rwy_lengths[index]} x {rwy_widths[index]} metros")
+      index += 1
+
+    return rwy_dimensions
+
+def get_result_rotaer(nome, codigo_icao, cidade, tipo_aerodromo, elevacao_ft, elevacao_mt, fir, pista, dimensoes_pista):
+
+  print(f"\nNome: {nome}\nCódigo ICAO: {codigo_icao}\nCidade: {cidade}\nTipo de Aeródromo: {tipo_aerodromo}\nElevação: {elevacao_ft} ({elevacao_mt})\nFIR: {fir}")
+
+  if type(pista) == list:
+    print("Pistas: ")
+    for rwy in pista:
+      print(f"      - {rwy}")
+  else:
+    print(f"Pista:")
+    print(f"      - {pista}")
+
+  if type(dimensoes_pista) == list:
+    print("Dimensões das pistas: ")
+    for dimensao in dimensoes_pista:
+      print(f"      - {dimensao}")
+  else:
+    print(f"Dimensões da pista: ")
+    print(f"      - {dimensoes_pista}")
 
 def rotaer():
-    api_key = "1737636254"
-    api_pass = "cf334dde-eb8c-11ee-8b18-0050569ac2e1"
+  area = "rotaer"
+  url = get_url(area)
+  response = make_request(url)
+  json_response = xml_to_dict(response)
+  data = get_data_rotaer(json_response)
+  nome = get_name_rotaer(data)
+  codigo_icao = get_icao_code_rotaer(data)
+  cidade = get_city_rotaer(data)
+  tipo_aerodromo = get_aero_type_rotaer(data).title()
+  elevacao_ft = get_alt_ft_rotaer(data)
+  elevacao_mt = get_alt_mt_rotaer(data)
+  fir = get_fir_rotaer(data)
+  pista = get_rwy_thr_rotaer(data)
+  dimensoes_pista = get_rwy_dimensions_rotaer(data)
+  get_result_rotaer(nome, codigo_icao, cidade, tipo_aerodromo, elevacao_ft, elevacao_mt, fir, pista, dimensoes_pista)
 
-    while True:
-        rotaer_icao_code = input("\nDigite o código ICAO da localidade do aeródromo que deseja: ")
-        obter_informacoes_aerodromo(api_key, api_pass, rotaer_icao_code)
-
-        repetir = input("\nDeseja fazer outra requisição? (s/n): ").strip().lower()
-        if repetir != 's':
-            print("Obrigado por usar o sistema. Até logo!")
-            break
-
+#---
 #SOL
-def json_response(resposta):
-  json_response = xmltodict.parse(resposta.content)
+#---
 
-  return json_response
-
-def get_icao_code(json_response):
+def get_icao_code_sol(json_response):
   icao_code = json_response.get('aisweb').get('day').get('aero')
 
   return icao_code
 
-def get_date(json_response):
+def get_date_sol(json_response):
   date = json_response.get('aisweb').get('day').get('date')
 
   data = date.split("-")
@@ -181,59 +296,72 @@ def get_date(json_response):
   year = data[0]
 
   formated_date = f"{day}/{month}/{year}"
+
   return formated_date
 
-def get_sunrise(json_response):
+def get_sunrise_sol(json_response):
   sunrise = json_response.get('aisweb').get('day').get('sunrise')
 
   hour_sunrise = int(sunrise[0:2])-3
 
-  sunrise_time = f"{hour_sunrise}.{sunrise[3:]}"
+  sunrise_time = f"{hour_sunrise}:{sunrise[3:]}"
 
   return sunrise_time
 
-def get_sunset(json_response):
+def get_sunset_sol(json_response):
   sunset = json_response.get('aisweb').get('day').get('sunset')
 
   hour_sunset = int(sunset[0:2])-3
 
-  sunset_time = f"{hour_sunset}.{sunset[3:]}"
+  sunset_time = f"{hour_sunset}:{sunset[3:]}"
 
   return sunset_time
 
-def get_result(icao_code, date, sunrise, sunset):
-  print(f"\nPara {icao_code.upper()}, no dia {date}, o nascer do Sol acontecerá ás {sunrise} e o pôr do sol, ás {sunset}.")
+def get_result_sol(icao_code, date, sunrise, sunset):
+  print(f"\nPara {icao_code.upper()}, no dia {date}, o nascer do Sol acontecerá às {sunrise} e o pôr do Sol, às {sunset}.")
 
 def sol():
-  dados = make_request()
-  dados_json = json_response(dados)
-  icao_code = get_icao_code(dados_json)
-  data_observacao = get_date(dados_json)
-  nascer_do_sol = get_sunrise(dados_json)
-  por_do_sol = get_sunset(dados_json)
-  get_result(icao_code, data_observacao, nascer_do_sol, por_do_sol)
+  area = "sol"
+  url = get_url(area)
+  response = make_request(url)
+  json_response = xml_to_dict(response)
+  icao_code = get_icao_code_sol(json_response)
+  data_observacao = get_date_sol(json_response)
+  nascer_do_sol = get_sunrise_sol(json_response)
+  por_do_sol = get_sunset_sol(json_response)
+  get_result_sol(icao_code, data_observacao, nascer_do_sol, por_do_sol)
+
+#----------------
+#FUNÇÃO PRINCIPAL
+#----------------
 
 def main():
 
-  print("===========================================")
-  print("=======BEM VINDO AO Aviators Atlas=========")
-  print("===========================================\n\n")
-  print("==================MENU=====================")
-  print("1 - GEILOC")
-  print("2 - METAR")
-  print("3 - ROTAER")
-  print("4 - SOL")
-  print("5 - SAIR")
+  print("===========================")
+  print("Bem vindo ao Aviators Atlas")
+  print("===========================\n")
 
-  opcao = int(input("Sua opção: "))
+  while True:
+    print("\n========== MENU ===========\n")
+    print("1 - GEILOC")
+    print("2 - METAR")
+    print("3 - ROTAER")
+    print("4 - SOL")
+    print("5 - SAIR")
 
-  if opcao == 1:
-    geiloc()
-  elif opcap == 2:
-    metar()
-  elif opcao == 3:
-    rotaer()
-  elif opcao == 4:
-    sol()
+    opcao = int(input("\nSua opção: \n"))
 
+    if opcao == 1:
+      geiloc()
+    elif opcao == 2:
+      metar()
+    elif opcao == 3:
+      rotaer()
+    elif opcao == 4:
+      sol()
+    elif opcao == 5:
+      print("\nAté mais!")
+      break
 
+#--------------------------------------------------------------------------------------------------------
+main()
