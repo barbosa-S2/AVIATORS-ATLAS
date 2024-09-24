@@ -27,3 +27,6 @@ Aviators Atlas é uma aplicação interativa que fornece informações sobre aer
 
 - Python 3.x
 - Bibliotecas: `requests`, `xmltodict`
+  
+## -Desenvolvido em:
+**Google Colab**: uma plataforma de desenvolvimento em nuvem que facilita a criação e execução de notebooks em Python
